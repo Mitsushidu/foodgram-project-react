@@ -6,7 +6,7 @@ User = get_user_model()
 
 class Ingredient(models.Model):
     name = models.CharField('Название ингредиента', max_length=200)
-    measurement_unit = models.CharField('Единица измерения')
+    measurement_unit = models.CharField('Единица измерения', max_length=32)
 
 
 class Tag(models.Model):
@@ -31,14 +31,20 @@ class Recipe(models.Model):
     )
     tag = models.ManyToManyField(
         Tag,
-        verbose_name='Тэг',
+        verbose_name='Тег',
         through='RecipeTag'
     )
 
 
 class RecipeIngredient(models.Model):
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
-    ingridient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
+    recipe = models.ForeignKey(Recipe,
+                               on_delete=models.CASCADE,
+                               related_name='recipe'
+                               )
+    ingredient = models.ForeignKey(Ingredient,
+                                   on_delete=models.CASCADE,
+                                   related_name='ingredient'
+                                   )
     amount = models.IntegerField('Количество')
 
 
