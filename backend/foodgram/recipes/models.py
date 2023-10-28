@@ -1,7 +1,5 @@
-from django.contrib.auth import get_user_model
 from django.db import models
-
-User = get_user_model()
+from users.models import User
 
 
 class Ingredient(models.Model):
@@ -24,46 +22,74 @@ class Recipe(models.Model):
         on_delete=models.CASCADE,
         related_name='recipes',
     )
-    ingredient = models.ManyToManyField(
+    ingredients = models.ManyToManyField(
         Ingredient,
         verbose_name='Ингредиент',
-        through='RecipeIngredient'
+        through='RecipeIngredient',
     )
-    tag = models.ManyToManyField(
+    tags = models.ManyToManyField(
         Tag,
         verbose_name='Тег',
-        through='RecipeTag'
+        through='RecipeTag',
     )
 
 
 class RecipeIngredient(models.Model):
     recipe = models.ForeignKey(Recipe,
                                on_delete=models.CASCADE,
-                               related_name='recipe'
+                               related_name='recipe_ingredient'
                                )
     ingredient = models.ForeignKey(Ingredient,
                                    on_delete=models.CASCADE,
-                                   related_name='ingredient'
+                                   related_name='ingredient_recipe'
                                    )
     amount = models.IntegerField('Количество')
 
 
 class RecipeTag(models.Model):
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
-    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name='recipe_tag',
+    )
+    tag = models.ForeignKey(
+        Tag,
+        on_delete=models.CASCADE,
+        related_name='tag_recipe',
+    )
 
 
-class Follow(models.Model):
+class Favorite(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='follower',
+        related_name='user_recipe',
+        default=None
     )
-    author = models.ForeignKey(
-        User,
+    recipe = models.ForeignKey(
+        Recipe,
         on_delete=models.CASCADE,
-        related_name='following',
+        related_name='favorite_recipe',
+        default=None,
     )
 
     def __str__(self) -> str:
-        return f'{self.user} подписан на {self.author}'
+        return f'{self.recipe} в избранном у {self.user}'
+
+
+class ShoppingCart(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='user_recipe_cart',
+        default=None
+    )
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name='recipe_in_cart',
+        default=None,
+    )
+
+    def __str__(self) -> str:
+        return f'{self.recipe} в корзине у {self.user}'

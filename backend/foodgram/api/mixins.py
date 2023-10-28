@@ -5,10 +5,11 @@ from rest_framework.viewsets import GenericViewSet
 
 
 class GetListCreateDestroyUpdateViewSet(
-    GenericViewSet,
-    CreateModelMixin,
-    UpdateModelMixin,
+    RetrieveModelMixin,
     ListModelMixin,
-    DestroyModelMixin
+    CreateModelMixin,
+    DestroyModelMixin,
+    UpdateModelMixin,
+    GenericViewSet,
 ):
     pass
