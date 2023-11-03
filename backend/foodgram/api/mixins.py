@@ -13,3 +13,19 @@ class GetListCreateDestroyUpdateViewSet(
     GenericViewSet,
 ):
     pass
+
+
+class GetListViewSet(
+    RetrieveModelMixin,
+    ListModelMixin,
+    GenericViewSet,
+):
+    pass
+
+
+class CreateDestroyViewSet(
+    CreateModelMixin,
+    DestroyModelMixin,
+    GenericViewSet
+):
+    pass
