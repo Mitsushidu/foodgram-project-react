@@ -6,7 +6,7 @@ from api.views import (
     IngredientViewSet,
     UserViewSet,
     FavoriteViewSet,
-    ShoppingCartViewSet
+    ShoppingCartViewSet,
 )
 
 router = DefaultRouter()

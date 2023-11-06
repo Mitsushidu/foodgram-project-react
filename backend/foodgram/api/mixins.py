@@ -29,3 +29,9 @@ class CreateDestroyViewSet(
     GenericViewSet
 ):
     pass
+
+class ListViewSet(
+    ListModelMixin,
+    GenericViewSet
+):
+    pass

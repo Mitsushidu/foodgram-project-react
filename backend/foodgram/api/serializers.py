@@ -1,9 +1,6 @@
-from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-from rest_framework.fields import CurrentUserDefault
 from rest_framework.validators import UniqueTogetherValidator
-from rest_framework.relations import SlugRelatedField
 from recipes.models import (
     Ingredient,
     Tag,
@@ -259,7 +256,9 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
             id=self.context.get('view').kwargs.get('recipe_id')
         )
         if ShoppingCart.objects.filter(recipe=recipe, user=user).exists():
-            raise serializers.ValidationError('Recipe is already in shopping cart')
+            raise serializers.ValidationError(
+                'Recipe is already in shopping cart'
+            )
         return data
 
     def create(self, validated_data):
