@@ -90,6 +90,7 @@ class RecipeSerializerRead(serializers.ModelSerializer):
             'name',
             'text',
             'cooking_time',
+            'image',
             'author',
             'is_favorited',
             'is_in_shopping_cart'
@@ -134,6 +135,7 @@ class RecipeSerializerPost(serializers.ModelSerializer):
             'tags',
             'name',
             'text',
+            'image',
             'cooking_time',
             'author'
         )
@@ -161,6 +163,7 @@ class RecipeSerializerPost(serializers.ModelSerializer):
         instance.name = validated_data.pop('name')
         instance.text = validated_data.pop('text')
         instance.cooking_time = validated_data.pop('cooking_time')
+        instance.image = validated_data.pop('image')
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('recipe_ingredient')
         for tag in tags:
@@ -184,10 +187,22 @@ class RecipeSerializerPost(serializers.ModelSerializer):
         return instance
 
     def to_representation(self, instance):
-        print(instance.ingredients)
         recipe = super(RecipeSerializerPost, self).to_representation(instance)
-        # tags = [tag for tag in recipe['tags']]
-        # recipe['tags'] = [Tag.objects.get(pk=tag) for tag in tags]
+        ingredients = RecipeIngredient.objects.filter(
+            recipe=instance.id
+        )
+        ingredients_serializer = RecipeIngredientSerializerRead(
+            ingredients,
+            source='recipe_ingredient',
+            many=True
+        )
+        tags_serializer = TagSerializer(
+            Tag.objects.filter(pk__in=recipe['tags']),
+            many=True
+        )
+        recipe['id'] = instance.id
+        recipe['tags'] = tags_serializer.data
+        recipe['ingredients'] = ingredients_serializer.data
         return recipe
 
 
@@ -230,6 +245,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
         recipe = instance.recipe
         representation['id'] = recipe.id
         representation['name'] = recipe.name
+        representation['image'] = recipe.image
         representation['cooking_time'] = recipe.cooking_time
         representation.pop('user', None)
         representation.pop('recipe', None)
@@ -277,6 +293,7 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
         recipe = instance.recipe
         representation['id'] = recipe.id
         representation['name'] = recipe.name
+        representation['image'] = recipe.image
         representation['cooking_time'] = recipe.cooking_time
         representation.pop('user', None)
         representation.pop('recipe', None)

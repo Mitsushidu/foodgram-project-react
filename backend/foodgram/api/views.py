@@ -2,6 +2,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from django_filters.rest_framework import DjangoFilterBackend
 from django.http import HttpResponse
 from djoser.serializers import SetPasswordSerializer
 from recipes.models import (
@@ -33,11 +34,18 @@ from .mixins import (
 )
 from .permissions import (
     UserPermission,
+    RecipePermission
 )
+from .pagination import PageLimitPagination
+from .filters import IngredientFilter, RecipeFilter
 
 
 class RecipeViewSet(GetListCreateDestroyUpdateViewSet):
     queryset = Recipe.objects.all()
+    permission_classes = (RecipePermission,)
+    pagination_class = PageLimitPagination
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = RecipeFilter
 
     def get_serializer_class(self):
         if self.action in ('list', 'retrieve'):
@@ -45,7 +53,11 @@ class RecipeViewSet(GetListCreateDestroyUpdateViewSet):
         else:
             return RecipeSerializerPost
 
-    @action(methods=['get'], detail=False, url_path=r'download_shopping_cart')
+    @action(methods=['get'],
+            detail=False,
+            url_path=r'download_shopping_cart',
+            permission_classes=(permissions.IsAuthenticated, )
+            )
     def download_shopping_cart(self, request):
         user = request.user
         shopping_cart = ShoppingCart.objects.filter(
@@ -85,16 +97,21 @@ class RecipeViewSet(GetListCreateDestroyUpdateViewSet):
 class TagViewSet(ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
+    pagination_class = None
 
 
 class IngredientViewSet(ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
+    pagination_class = None
+    filter_backends = (IngredientFilter, )
+    search_fields = ('^name', )
 
 
 class UserViewSet(GetListCreateViewSet):
     queryset = User.objects.all()
     permission_classes = (UserPermission,)
+    pagination_class = PageLimitPagination
 
     def get_serializer_class(self):
         if self.action in ['list', 'get']:
@@ -131,12 +148,25 @@ class UserViewSet(GetListCreateViewSet):
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(methods=['get'], detail=False, url_path=r'subscriptions')
+    @action(methods=['get'],
+            detail=False,
+            url_path=r'subscriptions',
+            permission_classes=(permissions.IsAuthenticated,),
+            )
     def subscriptions(self, request):
         subs = Follow.objects.filter(
             user=request.user
         ).values_list('author_id')
         user = User.objects.filter(pk__in=subs)
+        page = self.paginate_queryset(user)
+
+        if page is not None:
+            serializer = SubscriptionListSerializer(
+                page,
+                context={'request': request},
+                many=True
+            )
+            return self.get_paginated_response(serializer.data)
         serializer = SubscriptionListSerializer(
             user,
             context={'request': request},
@@ -144,11 +174,14 @@ class UserViewSet(GetListCreateViewSet):
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(methods=['post', 'delete'], detail=True, url_path=r'subscribe')
-    def subscriptions(self, request, pk=None):
+    @action(methods=['post', 'delete'],
+            detail=True,
+            url_path=r'subscribe',
+            permission_classes=(permissions.IsAuthenticated,),
+            )
+    def subscribe(self, request, pk=None):
         subscriber = request.user
         author = self.get_object()
-        print(author.id)
         if request.method == 'POST':
             if Follow.objects.filter(
                 user=subscriber,
@@ -191,11 +224,31 @@ class UserViewSet(GetListCreateViewSet):
 class FavoriteViewSet(CreateDestroyViewSet):
     queryset = Favorite.objects.all()
     serializer_class = FavoriteSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def delete(self, request, recipe_id=None):
+        user = request.user
+        recipe = Recipe.objects.get(id=recipe_id)
+        if not Favorite.objects.filter(
+            user=user,
+            recipe=recipe,
+        ):
+            return Response(
+                {'error': 'Recipe is not in favorite'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        else:
+            Favorite.objects.get(
+                user=user,
+                recipe=recipe,
+            ).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ShoppingCartViewSet(CreateDestroyViewSet):
     queryset = ShoppingCart.objects.all()
     serializer_class = ShoppingCartSerializer
+    permission_classes = (permissions.IsAuthenticated,)
 
     def delete(self, request, recipe_id=None):
         user = request.user
@@ -205,7 +258,7 @@ class ShoppingCartViewSet(CreateDestroyViewSet):
             recipe=recipe,
         ):
             return Response(
-                {'error': 'Subscription doesn\'t exist'},
+                {'error': 'Recipe is not in shopping cart'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         else:

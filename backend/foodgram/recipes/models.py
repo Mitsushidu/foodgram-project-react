@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MinValueValidator
 from users.models import User
 
 
@@ -14,9 +15,17 @@ class Tag(models.Model):
 
 
 class Recipe(models.Model):
-    name = models.CharField('Название рецепта', max_length=200)
+    name = models.CharField('Название рецепта', 
+                            max_length=200)
     text = models.TextField()
-    cooking_time = models.IntegerField('Время приготовления')
+    image = models.ImageField('Изображение',
+                              upload_to='recipes/image/',
+                              )
+    cooking_time = models.IntegerField('Время приготовления',
+                                       validators=[
+                                           MinValueValidator(1, 'Минимальное время готовки не менее одной минуты')
+                                       ]
+                                       )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -32,6 +41,17 @@ class Recipe(models.Model):
         verbose_name='Тег',
         through='RecipeTag',
     )
+
+    class Meta():
+        constraints = [
+            models.UniqueConstraint(
+                fields=['text', 'author'],
+                name='unique_text_author'
+            )
+        ]
+
+    def __str__(self):
+        return self.name
 
 
 class RecipeIngredient(models.Model):

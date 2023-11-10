@@ -58,10 +58,7 @@ class RecipeUserSubscriptionSerializer(serializers.ModelSerializer):
 class SubscriptionListSerializer(UserSerializer):
     is_subscribed = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
-    recipes = RecipeUserSubscriptionSerializer(
-        many=True,
-        read_only=True
-    )
+    recipes = serializers.SerializerMethodField()
 
     class Meta(UserSerializer.Meta):
         fields = (
@@ -75,8 +72,19 @@ class SubscriptionListSerializer(UserSerializer):
             'recipes_count'
         )
 
+    def get_recipes(self, data):
+        recipes_limit = self.context['request'].GET.get('recipes_limit', '')
+        if recipes_limit != '':
+            query = Recipe.objects.filter(author=data.id)[:int(recipes_limit)]
+        else:
+            query = Recipe.objects.filter(author=data.id)
+        serializer = RecipeUserSubscriptionSerializer(
+            query,
+            many=True
+        )
+        return serializer.data
+
     def get_is_subscribed(self, data):
-        print(self.context)
         if Follow.objects.filter(
             user=self.context['request'].user.id,
             author=data.id,
@@ -88,28 +96,3 @@ class SubscriptionListSerializer(UserSerializer):
 
     def get_recipes_count(self, data):
         return Recipe.objects.filter(author=data.id).count()
-
-
-class SubscribeSerializer(UserSerializer):
-    class Meta(UserSerializer.Meta):
-        fields = (
-            'id',
-        )
-
-    def create(self, data):
-        print(data.pk)
-        author = data.author
-        subscriber = self.context['request'].user.id
-        print(author, subscriber)
-        if Follow.objects.filter(
-            user=subscriber,
-            author=author,
-        ):
-            return serializers.ValidationError('Already subscribed')
-        elif author == subscriber:
-            return serializers.ValidationError('Can\'t subscribe to yourself')
-        else:
-            Follow.objects.create(
-                user=subscriber,
-                author=author,
-            )
