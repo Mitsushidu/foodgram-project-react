@@ -1,19 +1,22 @@
 from rest_framework.viewsets import ReadOnlyModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, permissions
+from django.http import HttpResponse
+from djoser.serializers import SetPasswordSerializer
 from recipes.models import (
     Recipe,
     Tag,
     Ingredient,
+    RecipeIngredient,
     Favorite,
     ShoppingCart
 )
 from users.models import User, Follow
 from users.serializers import (
     UserGetSerializer,
-    SubscriptionListSerializer,
-    SubscribeSerializer
+    UserRegistrationSerializer,
+    SubscriptionListSerializer
 )
 from .serializers import (
     RecipeSerializerPost,
@@ -25,8 +28,11 @@ from .serializers import (
 )
 from .mixins import (
     GetListCreateDestroyUpdateViewSet,
-    GetListViewSet,
+    GetListCreateViewSet,
     CreateDestroyViewSet,
+)
+from .permissions import (
+    UserPermission,
 )
 
 
@@ -39,6 +45,42 @@ class RecipeViewSet(GetListCreateDestroyUpdateViewSet):
         else:
             return RecipeSerializerPost
 
+    @action(methods=['get'], detail=False, url_path=r'download_shopping_cart')
+    def download_shopping_cart(self, request):
+        user = request.user
+        shopping_cart = ShoppingCart.objects.filter(
+            user=user
+        ).values_list('recipe_id')
+        recipes = Recipe.objects.filter(
+            pk__in=shopping_cart
+        )
+        ingredients = RecipeIngredient.objects.filter(
+            recipe__in=recipes
+        )
+        print(ingredients)
+        ingredient_dict = {}
+        for recipeingredient in ingredients:
+            ingredient = Ingredient.objects.get(
+                id=recipeingredient.ingredient_id
+            )
+            data = [
+                ingredient.name,
+                ingredient.measurement_unit,
+                recipeingredient.amount
+            ]
+            if ingredient.name in ingredient_dict:
+                ingredient_dict[ingredient.name][2] += data[2]
+            else:
+                ingredient_dict[ingredient.name] = data
+        with open('shopping_cart.txt', 'w', encoding='utf-8') as file:
+            for lst in ingredient_dict.values():
+                file.write(f'{lst[0]} ({lst[1]}) — {lst[2]}\n')
+        response = HttpResponse(content_type='text/plain')
+        response['Content-Disposition'] = (
+            'attachment; filename="shopping_cart.txt"'
+        )
+        return response
+
 
 class TagViewSet(ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
@@ -50,13 +92,50 @@ class IngredientViewSet(ReadOnlyModelViewSet):
     serializer_class = IngredientSerializer
 
 
-class UserViewSet(GetListViewSet):
+class UserViewSet(GetListCreateViewSet):
     queryset = User.objects.all()
-    serializer_class = UserGetSerializer
+    permission_classes = (UserPermission,)
+
+    def get_serializer_class(self):
+        if self.action in ['list', 'get']:
+            return UserGetSerializer
+        else:
+            return UserRegistrationSerializer
+
+    @action(["post"],
+            detail=False,
+            permission_classes=(permissions.IsAuthenticated,)
+            )
+    def set_password(self, request, *args, **kwargs):
+        serializer = SetPasswordSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        self.request.user.set_password(serializer.data["new_password"])
+        self.request.user.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(methods=['get'],
+            detail=False,
+            url_path=r'me',
+            permission_classes=(permissions.IsAuthenticated,)
+            )
+    def me(self, request):
+        user = request.user
+        serializer = UserGetSerializer(
+            user,
+            context={'request': request},
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(methods=['get'], detail=False, url_path=r'subscriptions')
     def subscriptions(self, request):
-        subs = Follow.objects.filter(user=request.user).values_list('author_id')
+        subs = Follow.objects.filter(
+            user=request.user
+        ).values_list('author_id')
         user = User.objects.filter(pk__in=subs)
         serializer = SubscriptionListSerializer(
             user,

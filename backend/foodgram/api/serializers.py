@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-from rest_framework.validators import UniqueTogetherValidator
+# from rest_framework.validators import UniqueTogetherValidator
 from recipes.models import (
     Ingredient,
     Tag,
@@ -10,7 +10,7 @@ from recipes.models import (
     Favorite,
     ShoppingCart
 )
-from users.models import User, Follow
+# from users.models import User, Follow
 from users.serializers import UserGetSerializer
 
 
@@ -186,8 +186,8 @@ class RecipeSerializerPost(serializers.ModelSerializer):
     def to_representation(self, instance):
         print(instance.ingredients)
         recipe = super(RecipeSerializerPost, self).to_representation(instance)
-        #tags = [tag for tag in recipe['tags']]
-        #recipe['tags'] = [Tag.objects.get(pk=tag) for tag in tags]
+        # tags = [tag for tag in recipe['tags']]
+        # recipe['tags'] = [Tag.objects.get(pk=tag) for tag in tags]
         return recipe
 
 

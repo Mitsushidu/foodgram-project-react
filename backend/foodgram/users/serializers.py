@@ -5,8 +5,16 @@ from recipes.models import Recipe
 
 
 class UserRegistrationSerializer(UserCreateSerializer):
+
     class Meta(UserCreateSerializer.Meta):
-        fields = ('email', 'username', 'first_name', 'last_name', 'password')
+        model = User
+        fields = (
+            'email',
+            'username',
+            'first_name',
+            'last_name',
+            'password'
+        )
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)

@@ -15,9 +15,10 @@ class GetListCreateDestroyUpdateViewSet(
     pass
 
 
-class GetListViewSet(
+class GetListCreateViewSet(
     RetrieveModelMixin,
     ListModelMixin,
+    CreateModelMixin,
     GenericViewSet,
 ):
     pass
@@ -29,6 +30,7 @@ class CreateDestroyViewSet(
     GenericViewSet
 ):
     pass
+
 
 class ListViewSet(
     ListModelMixin,
