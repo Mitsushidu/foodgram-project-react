@@ -15,7 +15,7 @@ class Tag(models.Model):
 
 
 class Recipe(models.Model):
-    name = models.CharField('Название рецепта', 
+    name = models.CharField('Название рецепта',
                             max_length=200)
     text = models.TextField()
     image = models.ImageField('Изображение',
@@ -23,11 +23,14 @@ class Recipe(models.Model):
                               )
     cooking_time = models.IntegerField('Время приготовления',
                                        validators=[
-                                           MinValueValidator(1, 'Минимальное время готовки не менее одной минуты')
+                                           MinValueValidator(
+                                               1,
+                                               'Минимальное время готовки не менее одной минуты')
                                        ]
                                        )
     author = models.ForeignKey(
         User,
+        verbose_name='Автор',
         on_delete=models.CASCADE,
         related_name='recipes',
     )

@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from django_filters.rest_framework import DjangoFilterBackend
+from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from djoser.serializers import SetPasswordSerializer
 from recipes.models import (
@@ -157,7 +158,9 @@ class UserViewSet(GetListCreateViewSet):
         subs = Follow.objects.filter(
             user=request.user
         ).values_list('author_id')
-        user = User.objects.filter(pk__in=subs)
+        user = User.objects.filter(
+            pk__in=subs
+        )
         page = self.paginate_queryset(user)
 
         if page is not None:
@@ -228,7 +231,7 @@ class FavoriteViewSet(CreateDestroyViewSet):
 
     def delete(self, request, recipe_id=None):
         user = request.user
-        recipe = Recipe.objects.get(id=recipe_id)
+        recipe = get_object_or_404(Recipe, id=recipe_id)
         if not Favorite.objects.filter(
             user=user,
             recipe=recipe,
@@ -252,7 +255,7 @@ class ShoppingCartViewSet(CreateDestroyViewSet):
 
     def delete(self, request, recipe_id=None):
         user = request.user
-        recipe = Recipe.objects.get(id=recipe_id)
+        recipe = get_object_or_404(Recipe, id=recipe_id)
         if not ShoppingCart.objects.filter(
             user=user,
             recipe=recipe,
