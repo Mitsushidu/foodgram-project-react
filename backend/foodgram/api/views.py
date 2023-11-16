@@ -35,7 +35,7 @@ from .mixins import (
 )
 from .permissions import (
     UserPermission,
-    RecipePermission
+    RecipePermission,
 )
 from .pagination import PageLimitPagination
 from .filters import IngredientFilter, RecipeFilter
@@ -85,10 +85,10 @@ class RecipeViewSet(GetListCreateDestroyUpdateViewSet):
                 ingredient_dict[ingredient.name][2] += data[2]
             else:
                 ingredient_dict[ingredient.name] = data
-        with open('shopping_cart.txt', 'w', encoding='utf-8') as file:
-            for lst in ingredient_dict.values():
-                file.write(f'{lst[0]} ({lst[1]}) — {lst[2]}\n')
-        response = HttpResponse(content_type='text/plain')
+        shopping_list = ''
+        for lst in ingredient_dict.values():
+            shopping_list += (f'{lst[0]} ({lst[1]}) — {lst[2]}\n')
+        response = HttpResponse(shopping_list, content_type='text/plain')
         response['Content-Disposition'] = (
             'attachment; filename="shopping_cart.txt"'
         )

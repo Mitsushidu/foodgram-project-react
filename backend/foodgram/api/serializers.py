@@ -1,6 +1,5 @@
-from django.shortcuts import get_object_or_404
 from rest_framework import serializers
-# from rest_framework.validators import UniqueTogetherValidator
+from django.shortcuts import get_object_or_404
 from recipes.models import (
     Ingredient,
     Tag,
@@ -10,8 +9,48 @@ from recipes.models import (
     Favorite,
     ShoppingCart
 )
-# from users.models import User, Follow
 from users.serializers import UserGetSerializer
+
+
+class Base64ImageField(serializers.ImageField):
+
+    def to_internal_value(self, data):
+        from django.core.files.base import ContentFile
+        import base64
+        import six
+        import uuid
+
+        # Check if this is a base64 string
+        if isinstance(data, six.string_types):
+            # Check if the base64 string is in the "data:" format
+            if 'data:' in data and ';base64,' in data:
+                # Break out the header from the base64 content
+                header, data = data.split(';base64,')
+
+            # Try to decode the file. Return validation error if it fails.
+            try:
+                decoded_file = base64.b64decode(data)
+            except TypeError:
+                self.fail('invalid_image')
+
+            # Generate file name:
+            file_name = str(uuid.uuid4())[:12]
+            # Get the file name extension:
+            file_extension = self.get_file_extension(file_name, decoded_file)
+
+            complete_file_name = "%s.%s" % (file_name, file_extension, )
+
+            data = ContentFile(decoded_file, name=complete_file_name)
+
+        return super(Base64ImageField, self).to_internal_value(data)
+
+    def get_file_extension(self, file_name, decoded_file):
+        import imghdr
+
+        extension = imghdr.what(file_name, decoded_file)
+        extension = "jpg" if extension == "jpeg" else extension
+
+        return extension
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -116,6 +155,10 @@ class RecipeSerializerRead(serializers.ModelSerializer):
 
 
 class RecipeSerializerPost(serializers.ModelSerializer):
+    image = Base64ImageField(
+        max_length=None,
+        use_url=True
+    )
     ingredients = RecipeIngredientSerializer(
         many=True,
         source='recipe_ingredient',
@@ -159,11 +202,13 @@ class RecipeSerializerPost(serializers.ModelSerializer):
         return recipe
 
     def update(self, instance, validated_data):
-        print(instance)
-        instance.name = validated_data.pop('name')
-        instance.text = validated_data.pop('text')
-        instance.cooking_time = validated_data.pop('cooking_time')
-        instance.image = validated_data.pop('image')
+        instance.name = validated_data.pop('name', instance.name)
+        instance.text = validated_data.pop('text', instance.text)
+        instance.cooking_time = validated_data.pop(
+            'cooking_time',
+            instance.cooking_time
+        )
+        instance.image = validated_data.pop('image', instance.image)
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('recipe_ingredient')
         for tag in tags:

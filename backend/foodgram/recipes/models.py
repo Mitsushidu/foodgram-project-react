@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator
+from datetime import datetime
 from users.models import User
 
 
@@ -7,11 +8,17 @@ class Ingredient(models.Model):
     name = models.CharField('Название ингредиента', max_length=200)
     measurement_unit = models.CharField('Единица измерения', max_length=32)
 
+    def __str__(self):
+        return self.name
+
 
 class Tag(models.Model):
     name = models.CharField('Название тега', max_length=200, unique=True)
     slug = models.SlugField('Слаг тега', unique=True, max_length=200)
     color = models.CharField('Цвет', unique=True, max_length=7)
+
+    def __str__(self):
+        return self.name
 
 
 class Recipe(models.Model):
@@ -21,13 +28,17 @@ class Recipe(models.Model):
     image = models.ImageField('Изображение',
                               upload_to='recipes/image/',
                               )
-    cooking_time = models.IntegerField('Время приготовления',
-                                       validators=[
-                                           MinValueValidator(
-                                               1,
-                                               'Минимальное время готовки не менее одной минуты')
-                                       ]
-                                       )
+    cooking_time = (
+        models.IntegerField(
+            'Время приготовления',
+            validators=[
+                MinValueValidator(
+                    1,
+                    'Минимальное время готовки не менее одной минуты'
+                )
+            ]
+        )
+    )
     author = models.ForeignKey(
         User,
         verbose_name='Автор',
@@ -44,8 +55,13 @@ class Recipe(models.Model):
         verbose_name='Тег',
         through='RecipeTag',
     )
+    pub_date = models.DateTimeField(
+        verbose_name='Дата публикации',
+        auto_now_add=True,
+    )
 
     class Meta():
+        ordering = ('-pub_date',)
         constraints = [
             models.UniqueConstraint(
                 fields=['text', 'author'],
@@ -68,6 +84,9 @@ class RecipeIngredient(models.Model):
                                    )
     amount = models.IntegerField('Количество')
 
+    def __str__(self):
+        return f'{self.recipe} содержит {self.ingredient}'
+
 
 class RecipeTag(models.Model):
     recipe = models.ForeignKey(
@@ -80,6 +99,9 @@ class RecipeTag(models.Model):
         on_delete=models.CASCADE,
         related_name='tag_recipe',
     )
+
+    def __str__(self):
+        return f'{self.recipe} имеет тег {self.tag}'
 
 
 class Favorite(models.Model):
