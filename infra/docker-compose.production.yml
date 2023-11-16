@@ -1,0 +1,33 @@
+version: '3.3'
+volumes:
+  pg_data_production:
+  static_volume:
+  media_volume:
+
+services:
+  db:
+    image: postgres:13.10
+    env_file: .env
+    volumes:
+      - pg_data_production:/var/lib/postgresql/data
+  backend:
+    image: mitsushidu/foodgram_backend:latest
+    env_file: .env
+    volumes:
+      - static_volume:/backend_static
+      - media_volume:/app/media
+    depends_on:
+      - db
+  frontend:
+    image: mitsushidu/foodgram_frontend:latest
+    volumes:
+      - ../frontend/:/app/result_build/
+  nginx:
+    image: mitsushidu/foodgram_gateway:latest
+    ports:
+      - 8000:80
+    volumes:
+      - ../frontend/build:/usr/share/nginx/html/
+      - ../docs/:/usr/share/nginx/html/api/docs/
+      - static_volume:/var/html/static/
+      - media_volume:/media/
