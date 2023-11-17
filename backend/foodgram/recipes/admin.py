@@ -19,7 +19,7 @@ class PersonAdmin(admin.ModelAdmin):
 
 class TagAdmin(admin.ModelAdmin):
     list_display = ['name', 'color', 'slug']
-    search_fields = ['name']
+    search_fields = ['name', ]
     empty_value_display = '-пусто-'
 
 
@@ -33,7 +33,7 @@ class FavoriteAdmin(admin.ModelAdmin):
 class ShoppingCartAdmin(admin.ModelAdmin):
     list_display = ['recipe', 'user']
     list_filter = ['recipe', 'user']
-    search_fields = ['user',]
+    search_fields = ['user', ]
     empty_value_display = '-пусто-'
 
 
@@ -50,7 +50,7 @@ class RecipeAdmin(admin.ModelAdmin):
 class IngredientAdmin(admin.ModelAdmin):
     list_filter = ['name', 'measurement_unit']
     search_fields = ['name', ]
-    list_display = ['name',]
+    list_display = ['name', ]
 
 
 admin.site.register(Tag, TagAdmin)
