@@ -1,41 +1,26 @@
-from rest_framework import serializers
+import base64
+import imghdr
+import uuid
+
+import six
+from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
-from recipes.models import (
-    Ingredient,
-    Tag,
-    Recipe,
-    RecipeIngredient,
-    RecipeTag,
-    Favorite,
-    ShoppingCart
-)
+from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                            RecipeTag, ShoppingCart, Tag)
+from rest_framework import serializers
 from users.serializers import UserGetSerializer
 
 
 class Base64ImageField(serializers.ImageField):
-
     def to_internal_value(self, data):
-        from django.core.files.base import ContentFile
-        import base64
-        import six
-        import uuid
-
-        # Check if this is a base64 string
         if isinstance(data, six.string_types):
-            # Check if the base64 string is in the "data:" format
             if 'data:' in data and ';base64,' in data:
-                # Break out the header from the base64 content
                 header, data = data.split(';base64,')
-
-            # Try to decode the file. Return validation error if it fails.
             try:
                 decoded_file = base64.b64decode(data)
             except TypeError:
                 self.fail('invalid_image')
-
-            # Generate file name:
             file_name = str(uuid.uuid4())[:12]
-            # Get the file name extension:
             file_extension = self.get_file_extension(file_name, decoded_file)
 
             complete_file_name = "%s.%s" % (file_name, file_extension, )
@@ -45,7 +30,6 @@ class Base64ImageField(serializers.ImageField):
         return super(Base64ImageField, self).to_internal_value(data)
 
     def get_file_extension(self, file_name, decoded_file):
-        import imghdr
 
         extension = imghdr.what(file_name, decoded_file)
         extension = "jpg" if extension == "jpeg" else extension
@@ -136,22 +120,16 @@ class RecipeSerializerRead(serializers.ModelSerializer):
         )
 
     def get_is_favorited(self, data):
-        if Favorite.objects.filter(
+        return Favorite.objects.filter(
             user=self.context['request'].user.id,
             recipe__id=data.id,
-        ):
-            return True
-        else:
-            return False
+        ).exists()
 
     def get_is_in_shopping_cart(self, data):
-        if ShoppingCart.objects.filter(
+        return ShoppingCart.objects.filter(
             user=self.context['request'].user.id,
             recipe__id=data.id,
-        ):
-            return True
-        else:
-            return False
+        ).exists()
 
 
 class RecipeSerializerPost(serializers.ModelSerializer):
@@ -181,6 +159,16 @@ class RecipeSerializerPost(serializers.ModelSerializer):
             'image',
             'cooking_time',
             'author'
+        )
+
+    def validate(self, data):
+        if (data['tags'] and data['tags'] == set(data['tags'])) and (
+            (data['ingredients'] and (
+                data['ingredients'] == set(data['ingredients'])))
+        ):
+            return data
+        return serializers.ValidationError(
+            "Tags or Ingredients couldn\t be validated"
         )
 
     def create(self, validated_data):
@@ -290,7 +278,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
         recipe = instance.recipe
         representation['id'] = recipe.id
         representation['name'] = recipe.name
-        representation['image'] = recipe.image
+        representation['image'] = str(recipe.image)
         representation['cooking_time'] = recipe.cooking_time
         representation.pop('user', None)
         representation.pop('recipe', None)
@@ -338,7 +326,7 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
         recipe = instance.recipe
         representation['id'] = recipe.id
         representation['name'] = recipe.name
-        representation['image'] = recipe.image
+        representation['image'] = str(recipe.image)
         representation['cooking_time'] = recipe.cooking_time
         representation.pop('user', None)
         representation.pop('recipe', None)

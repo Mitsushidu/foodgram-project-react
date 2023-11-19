@@ -1,5 +1,5 @@
-from django.db import models
 from django.core.validators import MinValueValidator
+from django.db import models
 from users.models import User
 
 
@@ -28,7 +28,7 @@ class Recipe(models.Model):
                               upload_to='recipes/image/',
                               )
     cooking_time = (
-        models.IntegerField(
+        models.PositiveSmallIntegerField(
             'Время приготовления',
             validators=[
                 MinValueValidator(
@@ -59,7 +59,7 @@ class Recipe(models.Model):
         auto_now_add=True,
     )
 
-    class Meta():
+    class Meta:
         ordering = ('-pub_date',)
         constraints = [
             models.UniqueConstraint(
@@ -81,7 +81,15 @@ class RecipeIngredient(models.Model):
                                    on_delete=models.CASCADE,
                                    related_name='ingredient_recipe'
                                    )
-    amount = models.IntegerField('Количество')
+    amount = models.PositiveSmallIntegerField(
+        'Количество',
+        validators=[
+            MinValueValidator(
+                1,
+                'Минимальное время готовки не менее одной минуты'
+            )
+        ]
+    )
 
     def __str__(self):
         return f'{self.recipe} содержит {self.ingredient}'
@@ -108,17 +116,23 @@ class Favorite(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='user_recipe',
-        default=None
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
         related_name='favorite_recipe',
-        default=None,
     )
 
     def __str__(self) -> str:
         return f'{self.recipe} в избранном у {self.user}'
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_favorite'
+            )
+        ]
 
 
 class ShoppingCart(models.Model):
@@ -126,14 +140,20 @@ class ShoppingCart(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='user_recipe_cart',
-        default=None
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
         related_name='recipe_in_cart',
-        default=None,
     )
 
     def __str__(self) -> str:
         return f'{self.recipe} в корзине у {self.user}'
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_shopping_cart'
+            )
+        ]

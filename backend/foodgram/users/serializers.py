@@ -1,7 +1,8 @@
 from djoser.serializers import UserCreateSerializer, UserSerializer
-from rest_framework import serializers
-from .models import Follow, User
 from recipes.models import Recipe
+from rest_framework import serializers
+
+from .models import Follow, User
 
 
 class UserRegistrationSerializer(UserCreateSerializer):
@@ -36,13 +37,10 @@ class UserGetSerializer(UserSerializer):
         )
 
     def get_is_subscribed(self, data):
-        if Follow.objects.filter(
+        return Follow.objects.filter(
             user=self.context['request'].user.id,
             author=data.id,
-        ):
-            return True
-        else:
-            return False
+        ).exists()
 
 
 class RecipeUserSubscriptionSerializer(serializers.ModelSerializer):
@@ -75,10 +73,9 @@ class SubscriptionListSerializer(UserSerializer):
 
     def get_recipes(self, data):
         recipes_limit = self.context['request'].GET.get('recipes_limit', '')
+        query = Recipe.objects.filter(author=data.id)
         if recipes_limit != '':
-            query = Recipe.objects.filter(author=data.id)[:int(recipes_limit)]
-        else:
-            query = Recipe.objects.filter(author=data.id)
+            query = query[:int(recipes_limit)]
         serializer = RecipeUserSubscriptionSerializer(
             query,
             many=True
@@ -86,14 +83,10 @@ class SubscriptionListSerializer(UserSerializer):
         return serializer.data
 
     def get_is_subscribed(self, data):
-        if Follow.objects.filter(
+        return Follow.objects.filter(
             user=self.context['request'].user.id,
             author=data.id,
-        ):
-            return True
-        else:
-            print(data)
-            return False
+        ).exists()
 
     def get_recipes_count(self, data):
         return Recipe.objects.filter(author=data.id).count()

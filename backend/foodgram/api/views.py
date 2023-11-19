@@ -1,44 +1,25 @@
-from rest_framework.viewsets import ReadOnlyModelViewSet
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
+from djoser.serializers import SetPasswordSerializer
+from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                            ShoppingCart, Tag)
+from rest_framework import permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status, permissions
-from django_filters.rest_framework import DjangoFilterBackend
-from django.shortcuts import get_object_or_404
-from django.http import HttpResponse
-from djoser.serializers import SetPasswordSerializer
-from recipes.models import (
-    Recipe,
-    Tag,
-    Ingredient,
-    RecipeIngredient,
-    Favorite,
-    ShoppingCart
-)
-from users.models import User, Follow
-from users.serializers import (
-    UserGetSerializer,
-    UserRegistrationSerializer,
-    SubscriptionListSerializer
-)
-from .serializers import (
-    RecipeSerializerPost,
-    RecipeSerializerRead,
-    TagSerializer,
-    IngredientSerializer,
-    FavoriteSerializer,
-    ShoppingCartSerializer,
-)
-from .mixins import (
-    GetListCreateDestroyUpdateViewSet,
-    GetListCreateViewSet,
-    CreateDestroyViewSet,
-)
-from .permissions import (
-    UserPermission,
-    RecipePermission,
-)
-from .pagination import PageLimitPagination
+from rest_framework.viewsets import ReadOnlyModelViewSet
+from users.models import Follow, User
+from users.serializers import (SubscriptionListSerializer, UserGetSerializer,
+                               UserRegistrationSerializer)
+
 from .filters import IngredientFilter, RecipeFilter
+from .mixins import (CreateDestroyViewSet, GetListCreateDestroyUpdateViewSet,
+                     GetListCreateViewSet)
+from .pagination import PageLimitPagination
+from .permissions import RecipePermission, UserPermission
+from .serializers import (FavoriteSerializer, IngredientSerializer,
+                          RecipeSerializerPost, RecipeSerializerRead,
+                          ShoppingCartSerializer, TagSerializer)
 
 
 class RecipeViewSet(GetListCreateDestroyUpdateViewSet):
@@ -70,7 +51,6 @@ class RecipeViewSet(GetListCreateDestroyUpdateViewSet):
         ingredients = RecipeIngredient.objects.filter(
             recipe__in=recipes
         )
-        print(ingredients)
         ingredient_dict = {}
         for recipeingredient in ingredients:
             ingredient = Ingredient.objects.get(
@@ -142,9 +122,8 @@ class UserViewSet(GetListCreateViewSet):
             permission_classes=(permissions.IsAuthenticated,)
             )
     def me(self, request):
-        user = request.user
         serializer = UserGetSerializer(
-            user,
+            request.user,
             context={'request': request},
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -158,70 +137,85 @@ class UserViewSet(GetListCreateViewSet):
         subs = Follow.objects.filter(
             user=request.user
         ).values_list('author_id')
-        user = User.objects.filter(
+        users = User.objects.filter(
             pk__in=subs
         )
-        page = self.paginate_queryset(user)
-
+        page = self.paginate_queryset(users)
         if page is not None:
-            serializer = SubscriptionListSerializer(
+            return self.get_paginated_response(SubscriptionListSerializer(
                 page,
                 context={'request': request},
                 many=True
-            )
-            return self.get_paginated_response(serializer.data)
-        serializer = SubscriptionListSerializer(
-            user,
+            ).data)
+        return Response(SubscriptionListSerializer(
+            users,
             context={'request': request},
             many=True
-        )
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        ).data, status=status.HTTP_200_OK)
 
-    @action(methods=['post', 'delete'],
+    @action(methods=['post'],
             detail=True,
             url_path=r'subscribe',
             permission_classes=(permissions.IsAuthenticated,),
             )
-    def subscribe(self, request, pk=None):
+    def subscription(self, request, pk=None):
         subscriber = request.user
         author = self.get_object()
-        if request.method == 'POST':
-            if Follow.objects.filter(
-                user=subscriber,
-                author=author,
-            ):
-                return Response(
-                    {'error': 'Subscription already exists'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            elif author == subscriber:
-                return Response(
-                    {'error': 'Can\'t subscribe to yourself'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            Follow.objects.create(
-                user=subscriber,
-                author=author,
+        if Follow.objects.filter(
+            user=subscriber,
+            author=author,
+        ).exists():
+            return Response(
+                {'error': 'Subscription already exists'},
+                status=status.HTTP_400_BAD_REQUEST
             )
-            response = SubscriptionListSerializer(
-                author,
-                context={'request': request}
+        if author == subscriber:
+            return Response(
+                {'error': 'Can\'t subscribe to yourself'},
+                status=status.HTTP_400_BAD_REQUEST
             )
-            return Response(response.data, status=status.HTTP_201_CREATED)
-        if request.method == 'DELETE':
-            if not Follow.objects.filter(
-                user=subscriber,
-                author=author,
-            ):
-                return Response(
-                    {'error': 'Subscription doesn\'t exist'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            Follow.objects.get(
-                user=subscriber,
-                author=author,
-            ).delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        Follow.objects.create(
+            user=subscriber,
+            author=author,
+        )
+        response = SubscriptionListSerializer(
+            author,
+            context={'request': request}
+        )
+        return Response(response.data, status=status.HTTP_201_CREATED)
+
+    @subscription.mapping.delete
+    def delete_subscription(self, request, pk=None):
+        subscriber = request.user
+        author = self.get_object()
+        if not Follow.objects.filter(
+            user=subscriber,
+            author=author,
+        ).exists():
+            return Response(
+                {'error': 'Subscription doesn\'t exist'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        Follow.objects.get(
+            user=subscriber,
+            author=author,
+        ).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def favorite_shopping_cart_delete(obj_class, user, recipe):
+    if not obj_class.objects.filter(
+            user=user,
+            recipe=recipe,
+    ).exists():
+        return Response(
+            {'error': 'No such recipe in list'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    obj_class.objects.get(
+        user=user,
+        recipe=recipe,
+    ).delete()
 
 
 class FavoriteViewSet(CreateDestroyViewSet):
@@ -232,19 +226,7 @@ class FavoriteViewSet(CreateDestroyViewSet):
     def delete(self, request, recipe_id=None):
         user = request.user
         recipe = get_object_or_404(Recipe, id=recipe_id)
-        if not Favorite.objects.filter(
-            user=user,
-            recipe=recipe,
-        ):
-            return Response(
-                {'error': 'Recipe is not in favorite'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        else:
-            Favorite.objects.get(
-                user=user,
-                recipe=recipe,
-            ).delete()
+        favorite_shopping_cart_delete(Favorite, user, recipe)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -259,14 +241,13 @@ class ShoppingCartViewSet(CreateDestroyViewSet):
         if not ShoppingCart.objects.filter(
             user=user,
             recipe=recipe,
-        ):
+        ).exists():
             return Response(
                 {'error': 'Recipe is not in shopping cart'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        else:
-            ShoppingCart.objects.get(
-                user=user,
-                recipe=recipe,
-            ).delete()
+        ShoppingCart.objects.get(
+            user=user,
+            recipe=recipe,
+        ).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
