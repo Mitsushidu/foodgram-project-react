@@ -223,13 +223,15 @@ class RecipeSerializerPost(serializers.ModelSerializer):
         instance.image = validated_data.pop('image', instance.image)
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('recipe_ingredient')
+        RecipeTag.objects.filter(recipe=instance).delete()
+        RecipeIngredient.objects.filter(recipe=instance).delete()
         for tag in tags:
             if not RecipeTag.objects.filter(tag=tag, recipe=instance).exists():
                 instance.tags.add(
                     tag.id,
                 )
         for ingredient in ingredients:
-            ingredient_id = ingredient.get('id').id
+            ingredient_id = ingredient.get('id')
             if not RecipeIngredient.objects.filter(
                 ingredient=ingredient_id,
                 recipe=instance
