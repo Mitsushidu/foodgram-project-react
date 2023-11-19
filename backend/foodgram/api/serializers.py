@@ -161,15 +161,39 @@ class RecipeSerializerPost(serializers.ModelSerializer):
             'author'
         )
 
-    def validate(self, data):
-        if (data['tags'] and data['tags'] == set(data['tags'])) and (
-            (data['ingredients'] and (
-                data['ingredients'] == set(data['ingredients'])))
-        ):
-            return data
-        return serializers.ValidationError(
-            "Tags or Ingredients couldn\t be validated"
-        )
+    def validate_tags(self, tags):
+        if not tags:
+            raise serializers.ValidationError('Empty tag list')
+        lst_tags = []
+        for tag in tags:
+            if not Tag.objects.filter(id=tag.id).exists():
+                raise serializers.ValidationError(
+                    'No such tag'
+                )
+            if tag in lst_tags:
+                raise serializers.ValidationError(
+                    'Tags must be unique'
+                )
+            lst_tags.append(tag)
+        return tags
+
+    def validate_ingredients(self, data):
+        if not data:
+            raise serializers.ValidationError('Empty tag list')
+        ingredients = self.initial_data.get('ingredients')
+        lst_ingredients = []
+        for ingredient in ingredients:
+            print(ingredients, ingredient)
+            if not Ingredient.objects.filter(id=ingredient['id']).exists():
+                raise serializers.ValidationError(
+                    'No such ingredient'
+                )
+            if ingredient in lst_ingredients:
+                raise serializers.ValidationError(
+                    'Ingredients must be unique'
+                )
+            lst_ingredients.append(ingredient)
+        return ingredients
 
     def create(self, validated_data):
         tags = validated_data.pop('tags')
