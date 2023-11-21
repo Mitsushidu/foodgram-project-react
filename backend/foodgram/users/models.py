@@ -10,7 +10,7 @@ class User(AbstractUser):
         max_length=20,
         validators=(validate_username,
                     RegexValidator(
-                        regex=r'^[a-zA-Z][a-zA-Z0-9-_\.]$',
+                        regex='^[a-zA-Z0-9]+$',
                         message='Username contains forbidden characters',
                         code='invalid_username'
                     )
