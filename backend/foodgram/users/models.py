@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import RegexValidator
 from django.db import models
 
 from .validators import validate_username
@@ -7,7 +8,13 @@ from .validators import validate_username
 class User(AbstractUser):
     username = models.CharField(
         max_length=20,
-        validators=(validate_username,),
+        validators=(validate_username,
+                    RegexValidator(
+                        regex=r'^[a-zA-Z][a-zA-Z0-9-_\.]$',
+                        message='Username contains forbidden characters',
+                        code='invalid_username'
+                    )
+                    ),
         unique=True,
     )
     first_name = models.CharField(max_length=150)

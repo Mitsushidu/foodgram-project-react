@@ -1,5 +1,6 @@
 from django.core.validators import MinValueValidator
 from django.db import models
+
 from users.models import User
 
 
@@ -123,9 +124,6 @@ class Favorite(models.Model):
         related_name='favorite_recipe',
     )
 
-    def __str__(self) -> str:
-        return f'{self.recipe} в избранном у {self.user}'
-
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -133,6 +131,9 @@ class Favorite(models.Model):
                 name='unique_favorite'
             )
         ]
+
+    def __str__(self) -> str:
+        return f'{self.recipe} в избранном у {self.user}'
 
 
 class ShoppingCart(models.Model):
@@ -147,9 +148,6 @@ class ShoppingCart(models.Model):
         related_name='recipe_in_cart',
     )
 
-    def __str__(self) -> str:
-        return f'{self.recipe} в корзине у {self.user}'
-
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -157,3 +155,6 @@ class ShoppingCart(models.Model):
                 name='unique_shopping_cart'
             )
         ]
+
+    def __str__(self) -> str:
+        return f'{self.recipe} в корзине у {self.user}'

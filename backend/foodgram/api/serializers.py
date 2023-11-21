@@ -5,9 +5,10 @@ import uuid
 import six
 from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
+from rest_framework import serializers
+
 from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
                             RecipeTag, ShoppingCart, Tag)
-from rest_framework import serializers
 from users.serializers import UserGetSerializer
 
 
@@ -179,11 +180,10 @@ class RecipeSerializerPost(serializers.ModelSerializer):
 
     def validate_ingredients(self, data):
         if not data:
-            raise serializers.ValidationError('Empty tag list')
+            raise serializers.ValidationError('Empty ingredient list')
         ingredients = self.initial_data.get('ingredients')
         lst_ingredients = []
         for ingredient in ingredients:
-            print(ingredients, ingredient)
             if not Ingredient.objects.filter(id=ingredient['id']).exists():
                 raise serializers.ValidationError(
                     'No such ingredient'
@@ -226,22 +226,16 @@ class RecipeSerializerPost(serializers.ModelSerializer):
         RecipeTag.objects.filter(recipe=instance).delete()
         RecipeIngredient.objects.filter(recipe=instance).delete()
         for tag in tags:
-            if not RecipeTag.objects.filter(tag=tag, recipe=instance).exists():
-                instance.tags.add(
-                    tag.id,
-                )
+            instance.tags.add(
+                tag.id,
+            )
         for ingredient in ingredients:
-            ingredient_id = ingredient.get('id')
-            if not RecipeIngredient.objects.filter(
-                ingredient=ingredient_id,
-                recipe=instance
-            ).exists():
-                instance.ingredients.add(
-                    ingredient_id,
-                    through_defaults={
-                        'amount': ingredient.get('amount'),
-                    }
-                )
+            instance.ingredients.add(
+                ingredient.get('id'),
+                through_defaults={
+                    'amount': ingredient.get('amount'),
+                }
+            )
         instance.save()
         return instance
 

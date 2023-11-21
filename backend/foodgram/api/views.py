@@ -2,12 +2,13 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.serializers import SetPasswordSerializer
-from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
-                            ShoppingCart, Tag)
 from rest_framework import permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
+
+from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                            ShoppingCart, Tag)
 from users.models import Follow, User
 from users.serializers import (SubscriptionListSerializer, UserGetSerializer,
                                UserRegistrationSerializer)
@@ -238,16 +239,5 @@ class ShoppingCartViewSet(CreateDestroyViewSet):
     def delete(self, request, recipe_id=None):
         user = request.user
         recipe = get_object_or_404(Recipe, id=recipe_id)
-        if not ShoppingCart.objects.filter(
-            user=user,
-            recipe=recipe,
-        ).exists():
-            return Response(
-                {'error': 'Recipe is not in shopping cart'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        ShoppingCart.objects.get(
-            user=user,
-            recipe=recipe,
-        ).delete()
+        favorite_shopping_cart_delete(ShoppingCart, user, recipe)
         return Response(status=status.HTTP_204_NO_CONTENT)
