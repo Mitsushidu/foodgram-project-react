@@ -40,16 +40,16 @@
     ```
     Разрешенные хосты: '127.0.0.1 localhost'
 
-4. **Запускаем контейнеры и сеть, связывающую их:**
+4. **Запускаем контейнеры Docker**
     ```bash
-    sudo docker compose up
+    sudo docker compose -f docker-compose.production.yml up
     ```
 
 5. **Создаем миграции, собираем статику бэкенда и копируем ее:**
     ```bash
-    sudo docker compose exec backend python manage.py migrate
-    sudo docker compose exec backend python manage.py collectstatic
-    sudo docker compose exec backend cp -r /app/collected_static/. /backend_static/static/
+    sudo docker compose -f docker-compose.production.yml exec backend python manage.py migrate
+    sudo docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic
+    sudo docker compose -f docker-compose.production.yml exec backend cp -r /app/collected_static/. /backend_static/static/
     ```
 
 6. **Заполняем базу данных ингредиентами:**
