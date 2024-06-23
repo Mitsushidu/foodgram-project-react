@@ -57,7 +57,7 @@
     sudo docker compose exec backend python manage.py load_data
     ```
 
-7. **Переходим по ссылке https://localhost:5000/**
+7. **Переходим по ссылке https://localhost:8000/**
 
 
 
